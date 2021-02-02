@@ -27,7 +27,7 @@ app.get("/api/courses/:id", (req, res) => {
   });
 
   if (!course) {
-    res.status(404).send("The course with the given id does not exist");
+    return res.status(404).send("The course with the given id does not exist");
   }
   res.send(course);
 });
@@ -37,22 +37,70 @@ app.get("/posts/:year/:month", (req, res) => {
 });
 
 app.post("/api/courses", (req, res) => {
-  const schema = Joi.object({
-    name: Joi.string().min(3).required(),
-  });
+  const { error } = validateCourse(req.body); //result.error
 
-  const result = schema.validate(req.body);
-
-  if (result.error) {
-    res.status(400).send(result.error.details[0].message);
-    return;
+  if (error) {
+    return res.status(400).send(error.details[0].message);
   }
+
   const course = {
     id: courses.length + 1,
     name: req.body.name,
   };
 
   courses.push(course);
+  res.send(course);
+});
+
+app.put("/api/courses/:id", (req, res) => {
+  //Look up the course
+  //If does not exist, return 404
+  const course = courses.find((c) => {
+    return c.id === parseInt(req.params.id);
+  });
+
+  if (!course) {
+    return res.status(404).send("The course with the given id does not exist");
+  }
+
+  //Validate
+  //if invalid, return 400 - Bad request
+  //  const result = validateCourse(req.body);
+  const { error } = validateCourse(req.body); //result.error
+
+  if (error) {
+    return res.status(400).send(error.details[0].message);
+  }
+
+  //Update course
+  //Return the updated course
+  course.name = req.body.name;
+  res.send(course);
+});
+
+function validateCourse(course) {
+  const schema = Joi.object({
+    name: Joi.string().min(3).required(),
+  });
+  console.log(schema.validate(course));
+  return schema.validate(course);
+}
+
+app.delete("/api/courses/:id", (req, res) => {
+  //Look up the course
+  //Does not exist, return 404
+  const course = courses.find((c) => {
+    return c.id === parseInt(req.params.id);
+  });
+
+  if (!course) {
+    return res.status(404).send("The course with the given id does not exist");
+  }
+
+  //delete
+  const index = courses.indexOf(course);
+  courses.splice(index, 1);
+  //Return the same course
   res.send(course);
 });
 
