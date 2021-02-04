@@ -1,109 +1,48 @@
 const express = require("express");
+const morgan = require("morgan");
+const logger = require("./middleware/logger");
+const author = require("./author");
 const Joi = require("joi");
 const app = express();
+const courses = require("./routes/courses");
+const home = require("./routes/home");
 
-const port = process.env.PORT || 3000;
-
+//middlewares
 app.use(express.json());
 
-const courses = [
-  { id: 1, name: "Javascript" },
-  { id: 2, name: "html" },
-  { id: 3, name: "css" },
-  { id: 4, name: "python" },
-];
+app.use(express.urlencoded({ extended: true })); //key=value&key=value
 
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
+app.use(express.static("public"));
 
-app.get("/api/courses", (req, res) => {
-  res.send(courses);
-});
+app.set("view engine", "pug");
 
-app.get("/api/courses/:id", (req, res) => {
-  const course = courses.find((c) => {
-    return c.id === parseInt(req.params.id);
-  });
+app.set("views", "./views"); //default optional
 
-  if (!course) {
-    return res.status(404).send("The course with the given id does not exist");
-  }
-  res.send(course);
-});
+//third party middleware
+app.use(morgan("tiny"));
 
-app.get("/posts/:year/:month", (req, res) => {
-  res.send(req.params);
-});
+//custom middleware
+app.use(logger);
 
-app.post("/api/courses", (req, res) => {
-  const { error } = validateCourse(req.body); //result.error
+app.use(author);
 
-  if (error) {
-    return res.status(400).send(error.details[0].message);
-  }
+app.use("/api/courses", courses);
+app.use("/", home);
 
-  const course = {
-    id: courses.length + 1,
-    name: req.body.name,
-  };
+//Environment deelopment or production
+// console.log("NODE_ENV: " + process.env.NODE_ENV);
+// console.log("app:" + app.get("env"));
 
-  courses.push(course);
-  res.send(course);
-});
-
-app.put("/api/courses/:id", (req, res) => {
-  //Look up the course
-  //If does not exist, return 404
-  const course = courses.find((c) => {
-    return c.id === parseInt(req.params.id);
-  });
-
-  if (!course) {
-    return res.status(404).send("The course with the given id does not exist");
-  }
-
-  //Validate
-  //if invalid, return 400 - Bad request
-  //  const result = validateCourse(req.body);
-  const { error } = validateCourse(req.body); //result.error
-
-  if (error) {
-    return res.status(400).send(error.details[0].message);
-  }
-
-  //Update course
-  //Return the updated course
-  course.name = req.body.name;
-  res.send(course);
-});
-
-function validateCourse(course) {
-  const schema = Joi.object({
-    name: Joi.string().min(3).required(),
-  });
-  console.log(schema.validate(course));
-  return schema.validate(course);
+if (app.get("env") === "development") {
+  app.use(morgan("tiny"));
+  console.log("Morgan enabled...");
 }
 
-app.delete("/api/courses/:id", (req, res) => {
-  //Look up the course
-  //Does not exist, return 404
-  const course = courses.find((c) => {
-    return c.id === parseInt(req.params.id);
-  });
+//to set production environment
+//export NODE_ENV=production    -->in the console
 
-  if (!course) {
-    return res.status(404).send("The course with the given id does not exist");
-  }
-
-  //delete
-  const index = courses.indexOf(course);
-  courses.splice(index, 1);
-  //Return the same course
-  res.send(course);
-});
-
+//port
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Listening on the port ${port}...`);
 });
